@@ -1,0 +1,401 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#eeede7">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="DELAY">
+  <meta name="description" content="Multiple moments. One photograph. An on-device multiple and long exposure camera.">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' blob: data:; media-src blob:; connect-src 'self'; worker-src 'self'; manifest-src 'self'; base-uri 'none'; form-action 'none'">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath fill='%23141414' d='M0 0h64v64H0z'/%3E%3Cpath d='M19 16h7c23 0 23 32 0 32h-7z' fill='none' stroke='%23eeede7' stroke-width='5'/%3E%3C/svg%3E">
+  <title>DELAY — Now is already gone.</title>
+  <style>
+    :root{color-scheme:light;--paper:#eeede7;--ink:#141414;--muted:#74736d}
+    *{box-sizing:border-box}[hidden]{display:none!important}
+    html{min-height:100%;background:var(--paper)}
+    body{margin:0;color:var(--ink);font-family:Arial,Helvetica,sans-serif;-webkit-tap-highlight-color:transparent}
+    button{font:inherit;color:inherit;cursor:pointer;touch-action:manipulation;-webkit-user-select:none;user-select:none}
+    button:disabled{cursor:default;opacity:.25}
+    button:focus-visible{outline:2px solid var(--ink);outline-offset:5px}
+    .app{width:min(100%,540px);margin:auto;padding:max(18px,env(safe-area-inset-top)) 20px max(16px,env(safe-area-inset-bottom))}
+    header{display:flex;justify-content:space-between;align-items:flex-end;gap:14px;margin-bottom:18px}
+    h1{font-size:clamp(39px,11vw,52px);line-height:.85;letter-spacing:-3px;font-weight:900;margin:0}
+    .tagline{font-size:8px;font-weight:600;letter-spacing:1.1px;line-height:1.55;text-align:right;padding-bottom:1px}
+    .viewfinder{width:min(100%,max(180px,calc((100svh - 335px - max(18px,env(safe-area-inset-top)) - max(16px,env(safe-area-inset-bottom)))*.8)));margin:0 auto}
+    .frame{position:relative;aspect-ratio:4/5;background:#171717;overflow:hidden}
+    #view,#photo{display:block;width:100%;height:100%;object-fit:contain}
+    #photo{position:absolute;inset:0;-webkit-touch-callout:default;user-select:auto}
+    #camera{position:fixed;left:0;top:0;width:2px;height:2px;opacity:.001;pointer-events:none}
+    .meta{display:flex;justify-content:space-between;gap:10px;margin-top:9px;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:8px;letter-spacing:1.2px;line-height:1.3}
+    .overlay{position:absolute;inset:0;background:#171717;color:var(--paper);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:28px}
+    .echo{display:flex;align-items:center;gap:9px;height:49px;margin-bottom:28px}
+    .echo i{display:block;width:5px;height:49px;background:currentColor;transform:skewY(-20deg)}
+    .echo i:nth-child(2){opacity:.52}.echo i:nth-child(3){opacity:.2}
+    .overlay h2{font-size:24px;line-height:1.12;letter-spacing:-.6px;font-weight:700;margin:0 0 14px}
+    .overlay p{font-size:12px;line-height:1.55;color:#aaa9a4;max-width:270px;margin:0}
+    .start{border:1px solid #77766f;background:transparent;color:var(--paper);font-size:10px;letter-spacing:1.7px;padding:14px 20px;margin-top:24px}
+    .exposure{position:absolute;top:14px;left:14px;background:var(--paper);color:var(--ink);padding:9px 11px;display:flex;gap:15px;align-items:baseline;pointer-events:none;font-size:9px;letter-spacing:1.5px}
+    #countdown{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:14px;font-variant-numeric:tabular-nums;letter-spacing:0;min-width:3.5ch;text-align:right}
+    .flash{position:absolute;inset:0;background:white;opacity:0;pointer-events:none}
+    .flash.fire{animation:flash .2s ease-out}@keyframes flash{0%{opacity:.85}100%{opacity:0}}
+    .hint{min-height:17px;margin:15px -4px 7px;text-align:center;font-size:9px;letter-spacing:1.1px;line-height:1.6}
+    fieldset{border:0;padding:0;margin:0 auto 3px;min-width:0;display:flex;justify-content:center;gap:23px}
+    .mode{border:0;border-bottom:1.5px solid transparent;background:none;min-height:42px;padding:10px 1px 7px;font-size:10px;letter-spacing:1.8px;color:var(--muted)}
+    .mode[aria-pressed="true"]{border-color:var(--ink);color:var(--ink);font-weight:700}
+    #durations{gap:22px;margin-bottom:13px}#durations .mode{font-size:9px;min-width:30px;letter-spacing:1px}
+    .controls{display:flex;align-items:center;justify-content:space-between;gap:22px;max-width:300px;margin:0 auto}
+    .side{background:none;border:0;min-width:67px;min-height:54px;font-size:9px;letter-spacing:1.6px}
+    .shutter{display:grid;place-items:center;width:68px;height:68px;flex-shrink:0;padding:5px;border:1.5px solid var(--ink);background:none;border-radius:50%}
+    .shutter span{width:100%;height:100%;display:grid;place-items:center;background:var(--ink);border-radius:50%;color:var(--paper)}
+    .shutter:active:not(:disabled){transform:scale(.95)}.shutter.captured:disabled{opacity:1}
+    .shutter svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.5}
+    footer{margin-top:16px;text-align:center;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:7px;line-height:1.8;letter-spacing:.65px;color:var(--muted)}
+    .offline{display:block;font-size:7px;letter-spacing:.8px;min-height:12px}
+    @media(min-width:640px){.app{padding-top:28px}}
+    @media(max-height:740px){.app{padding-top:max(12px,env(safe-area-inset-top))}header{margin-bottom:13px}h1{font-size:39px}.viewfinder{width:min(100%,max(172px,calc((100svh - 301px - max(12px,env(safe-area-inset-top)) - max(16px,env(safe-area-inset-bottom)))*.8)))}.hint{margin-top:10px;margin-bottom:3px}#durations{margin-bottom:9px}.shutter{width:60px;height:60px}footer{margin-top:11px}}
+    @media(orientation:landscape) and (max-height:530px){.app{width:min(100%,820px);display:grid;grid-template-columns:1fr 1fr;column-gap:34px;padding:15px 28px}header{grid-column:2;grid-row:1;align-self:start;margin:0}.tagline{font-size:7px}h1{font-size:40px}.viewfinder{grid-column:1;grid-row:1/7;width:min(100%,calc((100svh - 54px)*.8))}.hint{grid-column:2;grid-row:2;margin:4px 0}#modes{grid-column:2;grid-row:3;margin:0}#durations{grid-column:2;grid-row:4;margin:0}.mode{min-height:38px}.controls{grid-column:2;grid-row:5;width:100%;gap:8px}footer{grid-column:2;grid-row:6;margin:6px 0 0}}
+    @media(prefers-reduced-motion:reduce){.flash.fire{animation:none}}
+  </style>
+</head>
+<body>
+<main class="app">
+  <header><h1>DELAY</h1><div class="tagline">NOW IS<br>ALREADY GONE.</div></header>
+  <section class="viewfinder" aria-label="Multiple and long exposure camera">
+    <div class="frame">
+      <canvas id="view" width="960" height="1200" role="img" aria-label="Live camera preview"></canvas>
+      <img id="photo" alt="Your DELAY photograph. Press and hold to save on iPhone." hidden>
+      <div class="overlay" id="overlay">
+        <div class="echo" aria-hidden="true"><i></i><i></i><i></i></div>
+        <h2 id="overlayTitle">HOLD STILL.<br>LET TIME MOVE.</h2>
+        <p id="overlayText">Allow the camera. Multiple moments become one photograph.</p>
+        <button class="start" id="start" type="button">OPEN CAMERA</button>
+      </div>
+      <div class="exposure" id="exposure" hidden><span>HOLD</span><span id="countdown" aria-hidden="true">4.0s</span></div>
+      <div class="flash" id="flash" aria-hidden="true"></div>
+    </div>
+    <div class="meta"><span id="cameraLabel">BACK CAMERA</span><span id="memoryLabel">MULTI · 4S</span></div>
+  </section>
+  <p class="hint" id="hint" role="status" aria-live="polite">HOLD STILL. LET TIME MOVE.</p>
+  <fieldset id="modes" aria-label="Exposure mode">
+    <button class="mode" type="button" data-mode="multi" aria-pressed="true">MULTI</button>
+    <button class="mode" type="button" data-mode="ghost" aria-pressed="false">GHOST</button>
+    <button class="mode" type="button" data-mode="long" aria-pressed="false">LONG</button>
+  </fieldset>
+  <fieldset id="durations" aria-label="Exposure duration">
+    <button class="mode" type="button" data-seconds="1" aria-pressed="false">1S</button>
+    <button class="mode" type="button" data-seconds="2" aria-pressed="false">2S</button>
+    <button class="mode" type="button" data-seconds="4" aria-pressed="true">4S</button>
+    <button class="mode" type="button" data-seconds="8" aria-pressed="false">8S</button>
+  </fieldset>
+  <div class="controls">
+    <button type="button" id="flip" class="side" aria-label="Switch front or back camera" disabled>FLIP</button>
+    <button type="button" id="shutter" class="shutter" aria-label="Begin one photographic exposure" disabled><span><svg id="tick" viewBox="0 0 24 24" hidden aria-hidden="true"><path d="m5 12 5 5L20 6"/></svg></span></button>
+    <button type="button" id="save" class="side" aria-label="Save the finished photograph" style="visibility:hidden" disabled>SAVE</button>
+  </div>
+  <footer>ON DEVICE.<br>NOTHING SAVED UNTIL YOU SHOOT.<span class="offline" id="offlineState"></span></footer>
+</main>
+<video id="camera" autoplay muted playsinline aria-hidden="true" tabindex="-1"></video>
+<script>
+'use strict';
+/* PHOTOGRAPHIC EXPOSURE ENGINE */
+class ExposureBlend {
+  static moments = {multi:{1:2,2:3,4:5,8:8},ghost:{1:5,2:7,4:9,8:11}};
+  constructor(output) {
+    this.output=output;this.ctx=output.getContext('2d',{alpha:false});
+    this.sample=document.createElement('canvas');
+    this.sampleCtx=this.sample.getContext('2d',{alpha:false,willReadFrequently:true});
+    // Decode/encode only at the boundaries. Float accumulation avoids 8-bit
+    // rounding drift, especially across hundreds of LONG samples.
+    this.linear=new Float32Array(256);this.encoded=new Uint8ClampedArray(65536);
+    for(let i=0;i<256;i++){const v=i/255;this.linear[i]=v<=.04045?v/12.92:Math.pow((v+.055)/1.055,2.4);}
+    for(let i=0;i<65536;i++){const v=i/65535;this.encoded[i]=255*(v<=.0031308?12.92*v:1.055*Math.pow(v,1/2.4)-.055);}
+    this.clear();
+  }
+  drawFrame(source,ctx,mirror) {
+    const vw=source.videoWidth||source.width,vh=source.videoHeight||source.height;
+    if(!vw||!vh)throw new Error('CAMERA_FRAME_UNAVAILABLE');
+    const w=this.output.width,h=this.output.height,aspect=w/h,sw=Math.min(vw,vh*aspect),sh=sw/aspect;
+    ctx.save();ctx.setTransform(1,0,0,1,0,0);
+    if(mirror){ctx.translate(w,0);ctx.scale(-1,1);}
+    ctx.drawImage(source,(vw-sw)/2,(vh-sh)/2,sw,sh,0,0,w,h);ctx.restore();
+  }
+  preview(source,mirror=false) {this.drawFrame(source,this.ctx,mirror);}
+  read(source,mirror) {
+    this.drawFrame(source,this.sampleCtx,mirror);
+    return this.sampleCtx.getImageData(0,0,this.output.width,this.output.height).data;
+  }
+  begin(source,mode,seconds,now,mirror=false) {
+    if(!['multi','ghost','long'].includes(mode)||![1,2,4,8].includes(seconds))throw new Error('INVALID_EXPOSURE');
+    this.clear();this.mode=mode;this.duration=seconds*1000;this.started=now;
+    const w=this.output.width,h=this.output.height;
+    this.sample.width=w;this.sample.height=h;
+    this.mean=new Float32Array(w*h*3);this.image=this.ctx.createImageData(w,h);
+    const pixels=this.read(source,mirror),lut=this.linear;
+    for(let i=0,j=0;i<pixels.length;i+=4,j+=3){this.mean[j]=lut[pixels[i]];this.mean[j+1]=lut[pixels[i+1]];this.mean[j+2]=lut[pixels[i+2]];this.image.data[i+3]=255;}
+    this.weight=mode==='long'?0:1;this.samples=1;this.elapsed=0;this.nextSlot=1;this.active=true;
+    this.interval=mode==='long'?0:this.duration/(ExposureBlend.moments[mode][seconds]-1);
+    if(mode==='long'){
+      // Keep just the previous frame for trapezoidal time integration, never
+      // an expanding history. Frame-rate variations do not change exposure.
+      this.previous=pixels;
+      let brightness=0,n=0;
+      for(let i=0;i<pixels.length;i+=128){brightness+=(pixels[i]*.2126+pixels[i+1]*.7152+pixels[i+2]*.0722)/255;n++;}
+      this.night=Math.max(0,Math.min(1,(.43-brightness/n)/.30));
+      if(this.night>0)this.lights=new Float32Array(w*h*4);
+    }
+    this.render();
+  }
+  update(source,now,mirror=false) {
+    if(!this.active)return false;
+    const elapsed=Math.min(this.duration,Math.max(0,now-this.started)),final=elapsed>=this.duration;
+    if(elapsed<=this.elapsed)return false;
+    if(this.mode!=='long' && !final && elapsed+.001<this.nextSlot*this.interval)return false;
+    const pixels=this.read(source,mirror),lut=this.linear,mean=this.mean;
+    if(this.mode==='long'){
+      const dt=(elapsed-this.elapsed)/1000,total=this.weight+dt,alpha=dt/total,prev=this.previous,lights=this.lights;
+      for(let i=0,j=0;i<pixels.length;i+=4,j+=3){
+        const r=lut[pixels[i]],g=lut[pixels[i+1]],b=lut[pixels[i+2]],pr=lut[prev[i]],pg=lut[prev[i+1]],pb=lut[prev[i+2]];
+        mean[j]+=alpha*((r+pr)*.5-mean[j]);mean[j+1]+=alpha*((g+pg)*.5-mean[j+1]);mean[j+2]+=alpha*((b+pb)*.5-mean[j+2]);
+        if(lights){
+          // A separate, normalized, brightness-weighted full-frame average
+          // lets lights linger at night. No motion tests, spatial masks,
+          // cutouts, per-channel maxima, or additive highlight clipping.
+          let a=Math.max(r,g,b),p=Math.max(pr,pg,pb);a*=a;a*=a;p*=p;p*=p;
+          const scale=dt*.5;
+          lights[i]+=(r*a+pr*p)*scale;lights[i+1]+=(g*a+pg*p)*scale;lights[i+2]+=(b*a+pb*p)*scale;lights[i+3]+=(a+p)*scale;
+        }
+      }
+      this.previous=pixels;this.weight=total;
+    }else{
+      // Equal, separated exposures in MULTI, with a little more presence
+      // for the final moment. GHOST decays *all* older weights together;
+      // dividing by their sum keeps an unmoving photograph unchanged.
+      if(this.mode==='ghost')this.weight*=Math.pow(.70,(elapsed-this.elapsed)/this.interval);
+      const contribution=this.mode==='multi'&&final?1.25:1,alpha=contribution/(this.weight+contribution);
+      for(let i=0,j=0;i<pixels.length;i+=4,j+=3){mean[j]+=alpha*(lut[pixels[i]]-mean[j]);mean[j+1]+=alpha*(lut[pixels[i+1]]-mean[j+1]);mean[j+2]+=alpha*(lut[pixels[i+2]]-mean[j+2]);}
+      this.weight+=contribution;this.nextSlot=Math.floor((elapsed+.001)/this.interval)+1;
+    }
+    this.samples++;this.elapsed=elapsed;this.render();if(final)this.active=false;
+    return true;
+  }
+  render() {
+    const mean=this.mean,out=this.image.data,lut=this.encoded,lights=this.lights;
+    for(let i=0,j=0;i<out.length;i+=4,j+=3){
+      let r=mean[j],g=mean[j+1],b=mean[j+2];
+      if(lights && lights[i+3]>1e-12){
+        const inverse=1/lights[i+3],lr=lights[i]*inverse,lg=lights[i+1]*inverse,lb=lights[i+2]*inverse;
+        let strength=Math.max(0,Math.min(1,(Math.max(lr,lg,lb)-.20)/.55));
+        strength=strength*strength*(3-2*strength)*this.night*.68;
+        r+=strength*(lr-r);g+=strength*(lg-g);b+=strength*(lb-b);
+      }
+      out[i]=lut[Math.max(0,Math.min(65535,Math.round(r*65535)))];out[i+1]=lut[Math.max(0,Math.min(65535,Math.round(g*65535)))];out[i+2]=lut[Math.max(0,Math.min(65535,Math.round(b*65535)))];
+    }
+    this.ctx.putImageData(this.image,0,0);
+  }
+  clear() {
+    this.active=false;this.samples=0;this.weight=0;this.elapsed=0;this.night=0;
+    this.mean=null;this.image=null;this.previous=null;this.lights=null;
+    this.sample.width=1;this.sample.height=1;
+  }
+}
+/* CAMERA APP */
+(() => {
+  const $=id=>document.getElementById(id),video=$('camera'),canvas=$('view');
+  const engine=new ExposureBlend(canvas),captureCanvas=document.createElement('canvas');
+  const captureCtx=captureCanvas.getContext('2d',{alpha:false});
+  let stream=null,facing='environment',mode='multi',seconds=4,busy=false,ready=false,exposing=false,frozen=false,saving=false,paused=false;
+  let requestId=0,captureId=0,raf=0,lastFrame=-Infinity,lastVideoTime=-1,lastFresh=0,cost=16,deadline=0;
+  let imageFile=null,imageURL='',devices=[],interrupted=false;
+  const say=message=>{$('hint').textContent=message;};
+  function controls(){
+    $('shutter').disabled=!ready||busy||frozen||exposing;
+    $('shutter').classList.toggle('captured',frozen);$('tick').hidden=!frozen;
+    $('flip').disabled=busy||exposing||saving||(!ready&&!frozen);$('flip').textContent=frozen?'RETAKE':'FLIP';
+    $('flip').setAttribute('aria-label',frozen?'Retake the photograph':'Switch front or back camera');
+    $('save').disabled=!frozen||!imageFile||saving;$('save').style.visibility=frozen?'visible':'hidden';
+    $('modes').disabled=busy||exposing||frozen;$('durations').disabled=busy||exposing||frozen;
+    $('cameraLabel').textContent=facing==='user'?'FRONT · MIRRORED':'BACK CAMERA';
+    $('memoryLabel').textContent=frozen?'ONE STILL PHOTO':mode.toUpperCase()+' · '+seconds+'S';
+    $('exposure').hidden=!exposing;
+    canvas.setAttribute('aria-label',frozen?'Your finished DELAY photograph':exposing?'Photograph accumulating across time':'Live camera preview');
+  }
+  function overlay(title,text,action){
+    $('overlayTitle').textContent=title;$('overlayText').textContent=text;
+    $('start').textContent=action||'OPEN CAMERA';$('start').hidden=!action;$('overlay').hidden=false;
+  }
+  function stopCamera(){
+    cancelAnimationFrame(raf);raf=0;ready=false;exposing=false;
+    if(stream)stream.getTracks().forEach(track=>track.stop());
+    stream=null;video.pause();video.srcObject=null;engine.clear();
+  }
+  function waitForVideo(){
+    if(video.readyState>=2 && video.videoWidth)return Promise.resolve();
+    return new Promise((resolve,reject)=>{
+      let timeout;const clean=()=>{clearTimeout(timeout);video.removeEventListener('loadeddata',check);video.removeEventListener('canplay',check);};
+      const check=()=>{if(video.readyState>=2 && video.videoWidth){clean();resolve();}};
+      video.addEventListener('loadeddata',check);video.addEventListener('canplay',check);
+      timeout=setTimeout(()=>{clean();reject(new Error('VIDEO_TIMEOUT'));},10000);check();
+    });
+  }
+  async function openStream(target,flip,previous){
+    const settings={width:{ideal:1920},height:{ideal:1440},frameRate:{ideal:30,max:30}};
+    try{return await navigator.mediaDevices.getUserMedia({audio:false,video:{...settings,facingMode:flip?{exact:target}:{ideal:target}}});}
+    catch(error){
+      if(!['OverconstrainedError','NotFoundError'].includes(error.name))throw error;
+      if(flip){
+        const list=await navigator.mediaDevices.enumerateDevices();
+        const choices=list.filter(d=>d.kind==='videoinput'&&d.deviceId!==previous);
+        const other=choices.find(d=>target==='user'?/front|user|facetime/i.test(d.label):/back|rear|environment/i.test(d.label))||choices[0];
+        if(!other)throw new Error('ONE_CAMERA');
+        return navigator.mediaDevices.getUserMedia({audio:false,video:{...settings,deviceId:{exact:other.deviceId}}});
+      }
+      return navigator.mediaDevices.getUserMedia({audio:false,video:true});
+    }
+  }
+  async function startCamera(target=facing,flip=false){
+    if(busy||frozen||exposing||document.hidden)return;
+    if(!window.isSecureContext || !navigator.mediaDevices?.getUserMedia){
+      overlay('A SECURE ADDRESS IS NEEDED.',location.protocol==='file:'?'On a laptop, open this file in Chrome. On iPhone, use the HTTPS version in Safari.':'Open DELAY through HTTPS or localhost to use your camera.',null);return;
+    }
+    const previous=stream?.getVideoTracks()[0]?.getSettings().deviceId,oldFacing=facing,ticket=++requestId;
+    busy=true;paused=false;stopCamera();controls();
+    overlay('OPENING CAMERA.','No photograph is made until you press the shutter.',null);
+    try{
+      let next,oneCamera=false;
+      try{next=await openStream(target,flip,previous);}
+      catch(error){
+        if(flip && error.message==='ONE_CAMERA'){target=oldFacing;next=await openStream(target,false);oneCamera=true;}
+        else throw error;
+      }
+      if(ticket!==requestId || document.hidden){next.getTracks().forEach(t=>t.stop());return;}
+      stream=next;video.srcObject=next;
+      const track=next.getVideoTracks()[0],actual=track.getSettings().facingMode;
+      facing=actual==='user'||actual==='environment'?actual:target;
+      track.addEventListener('ended',()=>{
+        if(stream===next && !frozen){++requestId;busy=false;stopCamera();controls();overlay('CAMERA DISCONNECTED.','No photograph was saved. Reconnect the camera and try again.','TRY AGAIN');}
+      },{once:true});
+      await video.play();await waitForVideo();
+      if(ticket!==requestId || document.hidden){if(stream===next)stopCamera();else next.getTracks().forEach(t=>t.stop());return;}
+      try{devices=(await navigator.mediaDevices.enumerateDevices()).filter(d=>d.kind==='videoinput');}catch{devices=[];}
+      if(ticket!==requestId)return;
+      lastFrame=-Infinity;lastVideoTime=-1;lastFresh=performance.now();cost=16;
+      ready=true;$('overlay').hidden=true;
+      say(interrupted?'EXPOSURE INTERRUPTED. READY TO TRY AGAIN.':oneCamera?'THIS DEVICE HAS ONE AVAILABLE CAMERA.':'HOLD STILL. LET TIME MOVE.');interrupted=false;
+      engine.preview(video,facing==='user');raf=requestAnimationFrame(tick);
+    }catch(error){
+      if(ticket!==requestId)return;
+      stopCamera();
+      const messages={
+        NotAllowedError:['CAMERA PERMISSION NEEDED.','Allow Camera for this page in Safari or Chrome, then try again.'],
+        NotFoundError:['NO CAMERA FOUND.','Connect or enable a camera, then try again.'],
+        NotReadableError:['CAMERA IS BUSY.','Close another app or tab using the camera, then try again.'],
+        SecurityError:['CAMERA IS BLOCKED.','Open DELAY directly in Safari or Chrome and allow camera access.']
+      };
+      const [title,message]=messages[error.name]||['CAMERA NEEDS ANOTHER TRY.','Tap below to restart it. Close another app using your camera if needed.'];
+      overlay(title,message,'TRY AGAIN');say('NO PHOTO HAS BEEN TAKEN.');
+    }finally{if(ticket===requestId){busy=false;controls();}}
+  }
+  function failedExposure(){
+    ++requestId;busy=false;frozen=false;clearPhoto();stopCamera();controls();
+    overlay('EXPOSURE INTERRUPTED.','The camera paused. Nothing was saved. Try a fresh exposure.','RESTART CAMERA');say('NO PHOTO HAS BEEN SAVED.');
+  }
+  function tick(now){
+    if(!ready||frozen||document.hidden)return;
+    raf=requestAnimationFrame(tick);
+    const fresh=video.currentTime!==lastVideoTime;
+    if(fresh){lastVideoTime=video.currentTime;lastFresh=now;}
+    try{
+      if(exposing){
+        $('countdown').textContent=(Math.ceil(Math.max(0,deadline-now)/100)/10).toFixed(1)+'s';
+        if(now-lastFresh>750){failedExposure();return;}
+        if(now>=deadline){engine.update(video,deadline,facing==='user');finish();return;}
+      }
+      // Prefer fresh camera frames; leave the countdown responsive even
+      // between the intentionally separated MULTI/GHOST samples.
+      const interval=exposing&&mode==='long'?Math.max(1000/30,Math.min(1000/15,cost*1.15)):1000/30;
+      if(!fresh||now-lastFrame<interval-.5)return;
+      lastFrame=now;const started=performance.now();
+      const changed=exposing?engine.update(video,now,facing==='user'):(engine.preview(video,facing==='user'),true);
+      if(changed)cost=cost*.85+(performance.now()-started)*.15;
+    }catch{failedExposure();}
+  }
+  function clearPhoto(){
+    ++captureId;imageFile=null;$('photo').hidden=true;$('photo').removeAttribute('src');
+    if(imageURL)URL.revokeObjectURL(imageURL);imageURL='';captureCanvas.width=1;captureCanvas.height=1;
+  }
+  function capture(){
+    if(!ready||busy||frozen||exposing)return;
+    const now=performance.now();deadline=now+seconds*1000;lastFresh=now;lastVideoTime=video.currentTime;lastFrame=now;
+    try{engine.begin(video,mode,seconds,now,facing==='user');}
+    catch{failedExposure();return;}
+    exposing=true;$('countdown').textContent=seconds.toFixed(1)+'s';controls();
+    say('HOLD. ONE PHOTOGRAPH IS FORMING.');
+  }
+  function finish(){
+    exposing=false;frozen=true;const ticket=++captureId;
+    captureCanvas.width=canvas.width;captureCanvas.height=canvas.height;captureCtx.drawImage(canvas,0,0);
+    stopCamera();controls();
+    $('flash').classList.remove('fire');void $('flash').offsetWidth;$('flash').classList.add('fire');
+    say('MULTIPLE MOMENTS. ONE PHOTOGRAPH.');
+    const stamp=new Date().toISOString().replace(/[-:]/g,'').replace('T','_').slice(0,15);
+    captureCanvas.toBlob(blob=>{
+      if(ticket!==captureId||!frozen)return;
+      if(!blob){say('COULD NOT PREPARE PHOTO. PLEASE RETAKE.');return;}
+      imageFile=new File([blob],`DELAY_${stamp}.jpg`,{type:'image/jpeg'});
+      imageURL=URL.createObjectURL(blob);$('photo').src=imageURL;$('photo').hidden=false;controls();
+    },'image/jpeg',.94);
+  }
+  async function save(){
+    if(!frozen||!imageFile||saving)return;
+    const isiOS=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+    if(isiOS && navigator.share && navigator.canShare?.({files:[imageFile]})){
+      saving=true;controls();
+      try{await navigator.share({files:[imageFile]});say('PHOTO READY. MAKE ANOTHER MOMENT.');}
+      catch(error){say(error.name==='AbortError'?'YOUR PHOTO IS STILL HERE.':'PRESS AND HOLD THE PHOTO TO SAVE IT.');}
+      finally{saving=false;controls();}
+      return;
+    }
+    const a=document.createElement('a');a.href=imageURL;a.download=imageFile.name;document.body.appendChild(a);a.click();a.remove();
+    say(isiOS?'PRESS AND HOLD THE PHOTO IF NEEDED.':'PHOTO DOWNLOADED.');
+  }
+  $('start').addEventListener('click',()=>startCamera());$('shutter').addEventListener('click',capture);$('save').addEventListener('click',save);
+  $('flip').addEventListener('click',()=>{
+    if(busy||exposing||saving)return;
+    if(frozen){frozen=false;clearPhoto();controls();startCamera();return;}
+    if(!ready)return;
+    if(devices.length===1){say('THIS DEVICE HAS ONE AVAILABLE CAMERA.');return;}
+    startCamera(facing==='user'?'environment':'user',true);
+  });
+  document.querySelectorAll('[data-mode]').forEach(button=>button.addEventListener('click',()=>{
+    if(busy||exposing||frozen||mode===button.dataset.mode)return;
+    mode=button.dataset.mode;
+    document.querySelectorAll('[data-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b===button)));
+    controls();say('HOLD STILL. LET TIME MOVE.');
+  }));
+  document.querySelectorAll('[data-seconds]').forEach(button=>button.addEventListener('click',()=>{
+    if(busy||exposing||frozen)return;
+    seconds=Number(button.dataset.seconds);
+    document.querySelectorAll('[data-seconds]').forEach(b=>b.setAttribute('aria-pressed',String(b===button)));controls();
+  }));
+  function suspend(){
+    if(frozen)return;interrupted=interrupted||exposing;paused=true;++requestId;busy=false;stopCamera();controls();
+    overlay('A MOMENT AWAY.','The camera is paused. Return to make a new photograph.','RESUME CAMERA');
+  }
+  document.addEventListener('visibilitychange',()=>{if(document.hidden)suspend();else if(paused&&!frozen)startCamera();});
+  window.addEventListener('pagehide',suspend);window.addEventListener('pageshow',e=>{if(e.persisted&&!frozen)startCamera();});
+  async function offline(){
+    if(!/^https?:$/.test(location.protocol)){$('offlineState').textContent='OFFLINE FILE';return;}
+    const manifest=document.createElement('link');manifest.rel='manifest';manifest.href='./manifest.webmanifest';document.head.appendChild(manifest);
+    const icon=document.createElement('link');icon.rel='apple-touch-icon';icon.href='./icon-192.png';document.head.appendChild(icon);
+    if(!('serviceWorker' in navigator)||!window.isSecureContext){$('offlineState').textContent='HTTPS NEEDED FOR OFFLINE INSTALL';return;}
+    $('offlineState').textContent='PREPARING OFFLINE';
+    try{await navigator.serviceWorker.register('./sw.js',{scope:'./',updateViaCache:'none'});await navigator.serviceWorker.ready;$('offlineState').textContent='OFFLINE READY';}
+    catch{$('offlineState').textContent='OFFLINE SETUP FAILED · REOPEN ONLINE';}
+  }
+  controls();offline();startCamera();
+})();
+</script>
+</body>
+</html>
