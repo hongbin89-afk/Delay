@@ -1,6 +1,6 @@
 'use strict';
 const PREFIX='delay:'+self.registration.scope+':';
-const CACHE=PREFIX+'v2.1.0';
+const CACHE=PREFIX+'v2.2.0';
 const FILES=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 self.addEventListener('install',event=>{
   event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(FILES.map(path=>new Request(new URL(path,self.registration.scope),{cache:'reload'})))).then(()=>self.skipWaiting()));
