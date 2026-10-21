@@ -43,6 +43,7 @@
     .flash.fire{animation:flash .2s ease-out}@keyframes flash{0%{opacity:.85}100%{opacity:0}}
     .hint{min-height:17px;margin:15px -4px 7px;text-align:center;font-size:9px;letter-spacing:1.1px;line-height:1.6}
     fieldset{border:0;padding:0;margin:0 auto 3px;min-width:0;display:flex;justify-content:center;gap:23px}
+    #modes{gap:clamp(11px,3.6vw,23px)}
     .mode{border:0;border-bottom:1.5px solid transparent;background:none;min-height:42px;padding:10px 1px 7px;font-size:10px;letter-spacing:1.8px;color:var(--muted)}
     .mode[aria-pressed="true"]{border-color:var(--ink);color:var(--ink);font-weight:700}
     #colors{gap:25px;margin-bottom:4px}#colors .mode{font-size:9px;min-height:30px;padding:4px 1px 5px;letter-spacing:1.4px}
@@ -84,6 +85,7 @@
     <button class="mode" type="button" data-mode="multi" aria-pressed="true">MULTI</button>
     <button class="mode" type="button" data-mode="ghost" aria-pressed="false">GHOST</button>
     <button class="mode" type="button" data-mode="long" aria-pressed="false">LONG</button>
+    <button class="mode" type="button" data-mode="strobe" aria-pressed="false">STROBE</button>
   </fieldset>
   <fieldset id="durations" aria-label="Exposure duration">
     <button class="mode" type="button" data-seconds="1" aria-pressed="false">1S</button>
@@ -107,7 +109,7 @@
 'use strict';
 /* PHOTOGRAPHIC EXPOSURE ENGINE */
 class ExposureBlend {
-  static moments = {multi:{1:2,2:3,4:5,8:8},ghost:{1:5,2:7,4:9,8:11}};
+  static moments = {multi:{1:2,2:3,4:5,8:8},ghost:{1:5,2:7,4:9,8:11},strobe:{1:3,2:4,4:6,8:9}};
   constructor(output) {
     this.output=output;this.ctx=output.getContext('2d',{alpha:false});
     this.sample=document.createElement('canvas');
@@ -133,13 +135,19 @@ class ExposureBlend {
     return this.sampleCtx.getImageData(0,0,this.output.width,this.output.height).data;
   }
   begin(source,mode,seconds,now,mirror=false) {
-    if(!['multi','ghost','long'].includes(mode)||![1,2,4,8].includes(seconds))throw new Error('INVALID_EXPOSURE');
+    if(!['multi','ghost','long','strobe'].includes(mode)||![1,2,4,8].includes(seconds))throw new Error('INVALID_EXPOSURE');
     this.clear();this.mode=mode;this.duration=seconds*1000;this.started=now;
     const w=this.output.width,h=this.output.height;
     this.sample.width=w;this.sample.height=h;
     this.mean=new Float32Array(w*h*3);this.image=this.ctx.createImageData(w,h);
     const pixels=this.read(source,mirror),lut=this.linear;
     for(let i=0,j=0;i<pixels.length;i+=4,j+=3){this.mean[j]=lut[pixels[i]];this.mean[j+1]=lut[pixels[i+1]];this.mean[j+2]=lut[pixels[i+2]];this.image.data[i+3]=255;}
+    if(mode==='strobe'){
+      // Fixed first-frame reference and one composite, not a video history.
+      this.strobeBase=new Uint8ClampedArray(pixels);
+      this.strobeComposite=new Uint8ClampedArray(pixels);
+      this.strobeMarks=new Uint8Array(w*h);
+    }
     this.weight=mode==='long'?0:1;this.samples=1;this.elapsed=0;this.nextSlot=1;this.active=true;
     this.interval=mode==='long'?0:this.duration/(ExposureBlend.moments[mode][seconds]-1);
     if(mode==='long'){
@@ -159,7 +167,9 @@ class ExposureBlend {
     if(elapsed<=this.elapsed)return false;
     if(this.mode!=='long' && !final && elapsed+.001<this.nextSlot*this.interval)return false;
     const pixels=this.read(source,mirror),lut=this.linear,mean=this.mean;
-    if(this.mode==='long'){
+    if(this.mode==='strobe'){
+      this.strobeSample(pixels);
+    }else if(this.mode==='long'){
       const dt=(elapsed-this.elapsed)/1000,total=this.weight+dt,alpha=dt/total,prev=this.previous,lights=this.lights;
       for(let i=0,j=0;i<pixels.length;i+=4,j+=3){
         const r=lut[pixels[i]],g=lut[pixels[i+1]],b=lut[pixels[i+2]],pr=lut[prev[i]],pg=lut[prev[i+1]],pb=lut[prev[i+2]];
@@ -186,7 +196,47 @@ class ExposureBlend {
     this.samples++;this.elapsed=elapsed;this.render();if(final)this.active=false;
     return true;
   }
+  strobeSample(pixels) {
+    // Unlike MULTI's full-frame averaging, STROBE composites separated
+    // moving silhouettes over the first frame. Neighbourhood differences
+    // suppress sensor noise, while soft edges avoid hard cut-out artifacts.
+    const w=this.output.width,h=this.output.height,base=this.strobeBase,
+      composite=this.strobeComposite,marks=this.strobeMarks;
+    const cell=8,cols=Math.ceil(w/cell),rows=Math.ceil(h/cell);
+    const mask=new Float32Array(cols*rows);
+    for(let cy=0;cy<rows;cy++)for(let cx=0;cx<cols;cx++){
+      let sum=0,count=0;
+      for(let y=cy*cell;y<Math.min(h,(cy+1)*cell);y+=2)
+        for(let x=cx*cell;x<Math.min(w,(cx+1)*cell);x+=2){
+          const i=(y*w+x)*4;
+          sum+=(Math.abs(pixels[i]-base[i])+Math.abs(pixels[i+1]-base[i+1])+Math.abs(pixels[i+2]-base[i+2]))/3;
+          count++;
+        }
+      mask[cy*cols+cx]=Math.max(0,Math.min(1,(sum/count-13)/27));
+    }
+    for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+      const cx=Math.floor(x/cell),cy=Math.floor(y/cell);
+      let strength=0;
+      for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){
+        const xx=Math.max(0,Math.min(cols-1,cx+dx)),yy=Math.max(0,Math.min(rows-1,cy+dy));
+        strength+=mask[yy*cols+xx]*(dx===0&&dy===0?4:dx===0||dy===0?2:1);
+      }
+      strength/=16;
+      if(strength<.06)continue;
+      const p=y*w+x,i=p*4;
+      // Earlier poses retain priority; later poses fill the remaining
+      // space, keeping distinct bodies rather than translucent averages.
+      const alpha=strength*(marks[p]?0.16:0.94);
+      for(let k=0;k<3;k++)composite[i+k]=Math.round(composite[i+k]*(1-alpha)+pixels[i+k]*alpha);
+      if(strength>.35)marks[p]=1;
+    }
+  }
   render() {
+    if(this.mode==='strobe'){
+      this.image.data.set(this.strobeComposite);
+      this.ctx.putImageData(this.image,0,0);
+      return;
+    }
     const mean=this.mean,out=this.image.data,lut=this.encoded,lights=this.lights;
     for(let i=0,j=0;i<out.length;i+=4,j+=3){
       let r=mean[j],g=mean[j+1],b=mean[j+2];
@@ -203,6 +253,7 @@ class ExposureBlend {
   clear() {
     this.active=false;this.samples=0;this.weight=0;this.elapsed=0;this.night=0;
     this.mean=null;this.image=null;this.previous=null;this.lights=null;
+    this.strobeBase=null;this.strobeComposite=null;this.strobeMarks=null;
     this.sample.width=1;this.sample.height=1;
   }
 }
